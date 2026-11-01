@@ -1,0 +1,26 @@
+# Target build files
+target/
+*.class
+
+# IntelliJ IDEA & IDE files
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.vscode/
+.settings/
+.project
+.classpath
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs & temporary files
+*.log
+*.tmp
+
+# Local environment configuration overrides
+application-local.properties
+application-local.yml

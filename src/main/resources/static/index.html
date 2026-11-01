@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Garuda Aero GCS — Web-Based Drone Mission Planning & Airspace Safety Platform</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- FontAwesome 6 Pro/Free Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <!-- Custom GCS Styles -->
+    <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+    <!-- Top Navigation Header -->
+    <header class="navbar">
+        <div class="nav-left">
+            <div class="brand-logo">
+                <i class="fa-solid fa-plane-up"></i>
+            </div>
+            <div class="brand-text">
+                <div class="brand-title">GARUDA AERO <span class="brand-tag">GCS</span></div>
+                <div class="brand-subtitle">Autonomous Drone Mission Planning & Airspace Safety Platform</div>
+            </div>
+        </div>
+
+        <div class="nav-stats">
+            <div class="stat-pill">
+                <i class="fa-solid fa-drone text-primary"></i>
+                <div>
+                    <span class="stat-label">FLEET SIZE</span>
+                    <strong class="stat-value" id="stat-total-drones">3</strong>
+                </div>
+            </div>
+            <div class="stat-pill">
+                <i class="fa-solid fa-satellite-dish text-success"></i>
+                <div>
+                    <span class="stat-label">AIRBORNE</span>
+                    <strong class="stat-value text-success" id="stat-active-drones">0</strong>
+                </div>
+            </div>
+            <div class="stat-pill">
+                <i class="fa-solid fa-route text-info"></i>
+                <div>
+                    <span class="stat-label">MISSIONS</span>
+                    <strong class="stat-value" id="stat-missions">1</strong>
+                </div>
+            </div>
+            <div class="stat-pill">
+                <i class="fa-solid fa-shield-halved text-danger"></i>
+                <div>
+                    <span class="stat-label">ALERTS</span>
+                    <strong class="stat-value text-danger" id="stat-alerts">0</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-right">
+            <span class="sdg-badge"><i class="fa-solid fa-leaf"></i> UN SDG 9 & 11 Compliant</span>
+            <button class="btn btn-outline" onclick="openNewDroneModal()">
+                <i class="fa-solid fa-plus"></i> Add Drone
+            </button>
+            <button class="btn btn-primary" id="btn-plan-toggle" onclick="togglePlannerMode()">
+                <i class="fa-solid fa-draw-polygon"></i> Plan New Mission
+            </button>
+        </div>
+    </header>
+
+    <!-- Main App Container -->
+    <div class="app-container">
+        
+        <!-- Left Sidebar: Fleet & Mission Selection -->
+        <aside class="sidebar sidebar-left">
+            <!-- Drone Fleet Section -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <h4><i class="fa-solid fa-layer-group"></i> Fleet Registry</h4>
+                    <span class="badge-count" id="badge-drone-count">3</span>
+                </div>
+                <div class="card-list" id="drone-list-container">
+                    <!-- Populated dynamically by JS -->
+                </div>
+            </div>
+
+            <!-- Missions Section -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <h4><i class="fa-solid fa-map-location-dot"></i> Planned Missions</h4>
+                    <div style="display:flex; align-items:center; gap:0.4rem;">
+                        <button id="btn-filter-drone-missions" class="btn-filter-pill active" onclick="toggleMissionFilter()" title="Toggle: All Missions / Selected Drone Only">
+                            <i class="fa-solid fa-filter"></i> <span id="filter-drone-label">All</span>
+                        </button>
+                        <span class="badge-count" id="badge-mission-count">1</span>
+                    </div>
+                </div>
+                <div class="card-list" id="mission-list-container">
+                    <!-- Populated dynamically by JS -->
+                </div>
+            </div>
+
+            <!-- Quick Instructions / Viva Box -->
+            <div class="help-card">
+                <div class="help-title"><i class="fa-solid fa-circle-info text-info"></i> Quick Demo Guide</div>
+                <p>1. Select <strong>Jaipur Airport Outer Corridor</strong> in Planned Missions.</p>
+                <p>2. Click green <strong>Launch Flight</strong> on the right to start live simulation.</p>
+                <p>3. Watch the drone fly safely around the <strong>Jaipur Airport Red No-Fly Zone</strong>!</p>
+            </div>
+        </aside>
+
+        <!-- Center: Interactive Map Screen -->
+        <main class="map-container">
+            <div id="map"></div>
+
+            <!-- Map Layer Switcher Widget -->
+            <div class="map-controls-widget">
+                <button class="btn-layer active" onclick="switchMapLayer('satellite')"><i class="fa-solid fa-satellite"></i> Satellite</button>
+                <button class="btn-layer" onclick="switchMapLayer('streets')"><i class="fa-solid fa-road"></i> Streets</button>
+                <button class="btn-layer" onclick="switchMapLayer('dark')"><i class="fa-solid fa-moon"></i> Dark HUD</button>
+            </div>
+
+            <!-- Mission Planner Top Toolbar (Shown in Planning Mode) -->
+            <div class="planner-toolbar" id="planner-toolbar" style="display: none;">
+                <div class="planner-step">
+                    <span class="step-badge">STEP 1</span>
+                    <span>Click anywhere on the map to add Waypoints.</span>
+                </div>
+                <div class="planner-meta">
+                    <span>Points: <strong id="plan-wp-count">0</strong></span>
+                    <span>•</span>
+                    <span>Path: <strong id="plan-distance">0 m</strong></span>
+                </div>
+                <div class="planner-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="clearPlannedWaypoints()"><i class="fa-solid fa-rotate-left"></i> Reset</button>
+                    <button class="btn btn-sm btn-success" onclick="openSaveMissionModal()"><i class="fa-solid fa-check"></i> Save Mission</button>
+                    <button class="btn btn-sm btn-danger" onclick="cancelPlanning()"><i class="fa-solid fa-xmark"></i> Cancel</button>
+                </div>
+            </div>
+
+            <!-- Live Drone HUD Telemetry Float (Bottom Left) -->
+            <div class="telemetry-hud" id="drone-hud">
+                <div class="hud-top">
+                    <div>
+                        <div class="hud-drone-name" id="hud-drone-name">DJI Matrice 350 RTK</div>
+                        <div class="hud-drone-id" id="hud-drone-serial">DRONE-ALPHA-01</div>
+                    </div>
+                    <span class="status-badge badge-idle" id="hud-drone-status">IDLE</span>
+                </div>
+
+                <div class="battery-section">
+                    <div class="battery-info">
+                        <span><i class="fa-solid fa-battery-three-quarters"></i> BATTERY LEVEL</span>
+                        <strong id="hud-battery-val">100%</strong>
+                    </div>
+                    <div class="battery-track">
+                        <div class="battery-level-bar" id="hud-battery-fill" style="width: 100%;"></div>
+                    </div>
+                </div>
+
+                <div class="hud-metrics-grid">
+                    <div class="metric-box">
+                        <span class="m-label">ALTITUDE</span>
+                        <span class="m-val" id="hud-alt-val">0.0 <small>m</small></span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="m-label">AIRSPEED</span>
+                        <span class="m-val" id="hud-speed-val">0.0 <small>m/s</small></span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="m-label">HEADING</span>
+                        <span class="m-val" id="hud-heading-val">0°</span>
+                    </div>
+                    <div class="metric-box">
+                        <span class="m-label">ATTITUDE (P/R)</span>
+                        <span class="m-val" id="hud-attitude-val">0° / 0°</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar: Mission Operations & Safety Alerts -->
+        <aside class="sidebar sidebar-right">
+            <!-- Active Mission Operations -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <h4><i class="fa-solid fa-gamepad"></i> Flight Operations</h4>
+                </div>
+                <div class="mission-op-card">
+                    <div class="op-mission-name">
+                        <span class="op-label">SELECTED MISSION</span>
+                        <h3 id="active-mission-title">Select a Mission</h3>
+                    </div>
+
+                    <div class="mission-progress-box">
+                        <div class="progress-labels">
+                            <span>Mission Progress</span>
+                            <strong id="mission-progress-text">0%</strong>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" id="mission-progress-bar" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="op-controls">
+                        <button class="btn btn-launch" id="btn-start-mission" onclick="startSelectedMission()" disabled>
+                            <i class="fa-solid fa-paper-plane"></i> Launch Flight
+                        </button>
+                        <div class="btn-row">
+                            <button class="btn btn-warning" id="btn-pause-mission" onclick="pauseMission()" disabled>
+                                <i class="fa-solid fa-pause"></i> Pause
+                            </button>
+                            <button class="btn btn-info" id="btn-resume-mission" onclick="resumeMission()" disabled>
+                                <i class="fa-solid fa-play"></i> Resume
+                            </button>
+                        </div>
+                        <div class="btn-row">
+                            <button class="btn btn-rth" id="btn-rth-mission" onclick="triggerRTH()" disabled>
+                                <i class="fa-solid fa-house-chimney"></i> Return Home (RTH)
+                            </button>
+                            <button class="btn btn-abort" id="btn-abort-mission" onclick="abortMission()" disabled>
+                                <i class="fa-solid fa-ban"></i> Abort Flight
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Waypoint List of Active Mission -->
+            <div class="sidebar-section">
+                <div class="section-header">
+                    <h4><i class="fa-solid fa-route"></i> Waypoint Sequence</h4>
+                </div>
+                <div class="waypoint-table-container" id="waypoint-table-container">
+                    <div class="empty-hint">Select a mission to view waypoints.</div>
+                </div>
+            </div>
+
+            <!-- Live Safety & Geofence Alerts -->
+            <div class="sidebar-section alerts-container">
+                <div class="section-header">
+                    <h4><i class="fa-solid fa-triangle-exclamation text-danger"></i> Safety & Geofence Logs</h4>
+                    <button class="btn-clear" onclick="acknowledgeAllAlerts()">Acknowledge All</button>
+                </div>
+                <div class="alerts-feed" id="alerts-feed-container">
+                    <!-- Dynamic Alert Cards -->
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Modal: Add New Drone -->
+    <div class="modal-backdrop" id="modal-drone" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-drone"></i> Register Drone to Fleet</h3>
+                <button class="btn-close" onclick="closeModal('modal-drone')">&times;</button>
+            </div>
+            <form onsubmit="handleCreateDrone(event)">
+                <div class="form-group">
+                    <label>Drone Model Name</label>
+                    <input type="text" id="input-drone-model" required placeholder="e.g. DJI Inspire 3 / Hexacopter RTK" />
+                </div>
+                <div class="form-group">
+                    <label>Serial Number / Tail Number</label>
+                    <input type="text" id="input-drone-serial" required placeholder="e.g. DRONE-ECHO-05" />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Max Speed (m/s)</label>
+                        <input type="number" id="input-drone-speed" value="20" min="5" max="40" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Max Ceiling Altitude (m)</label>
+                        <input type="number" id="input-drone-altitude" value="120" min="20" max="500" required />
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Home Base Latitude</label>
+                        <input type="number" step="0.0001" id="input-drone-lat" value="28.6139" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Home Base Longitude</label>
+                        <input type="number" step="0.0001" id="input-drone-lng" value="77.2090" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-drone')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Register Drone</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Save Compiled Mission -->
+    <div class="modal-backdrop" id="modal-save-mission" style="display: none;">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-floppy-disk"></i> Save Mission Plan</h3>
+                <button class="btn-close" onclick="closeModal('modal-save-mission')">&times;</button>
+            </div>
+            <form onsubmit="handleSaveMission(event)">
+                <div class="form-group">
+                    <label>Mission Title</label>
+                    <input type="text" id="input-mission-name" required placeholder="e.g. Perimeter Security Patrol" />
+                </div>
+                <div class="form-group">
+                    <label>Assigned Fleet Drone</label>
+                    <select id="select-mission-drone" required>
+                        <!-- Options generated by JS -->
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Cruise Altitude (meters)</label>
+                        <input type="number" id="input-default-alt" value="40" min="10" max="120" required />
+                    </div>
+                    <div class="form-group">
+                        <label>Target Speed (m/s)</label>
+                        <input type="number" id="input-default-speed" value="14" min="2" max="30" required />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('modal-save-mission')">Cancel</button>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Save Mission (Draft)</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- GCS Application Logic -->
+    <script src="js/app.js"></script>
+</body>
+</html>
