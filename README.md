@@ -35,26 +35,9 @@
 
 ## 🏛️ System Architecture
 
-```mermaid
-flowchart TD
-    subgraph Frontend["Ground Control Station (GCS) Web Client"]
-        A[Interactive Leaflet.js Map] -->|Click-to-Plan Waypoints| B[Pre-Flight Geofence Validator]
-        C[3D Quadcopter Visualizer] -->|1000ms Polling| D[Live Telemetry HUD & Gauges]
-        E[Mission Operations Console] -->|Launch / Pause / RTH / Abort| F[REST API Client]
-    end
-
-    subgraph Backend["Spring Boot 3 Enterprise Backend Server"]
-        F --> G[REST Controllers]
-        G --> H[MissionService & DroneService]
-        H --> I[TelemetrySimulatorService<br/>1000ms Physics Engine]
-        I --> J[AlertRuleEngineService<br/>Airspace Virtual Wall & RTH]
-        I --> K[Spring Data JPA Repositories]
-    end
-
-    subgraph Database["Relational Data Store"]
-        K --> L[(MySQL 8.0 Database<br/>drone_simulation_db)]
-    end
-```
+<div align="center">
+  <img src="assets/architecture.svg" alt="Garuda Aero GCS Distributed System Architecture" width="100%" style="border-radius: 12px;"/>
+</div>
 
 ---
 
