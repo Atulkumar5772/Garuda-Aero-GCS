@@ -8,6 +8,12 @@
 [![Leaflet.js](https://img.shields.io/badge/Leaflet-1.9.4-199900?style=for-the-badge&logo=leaflet&logoColor=white)](https://leafletjs.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
+<br><br>
+
+<img src="assets/garuda-preview.svg" alt="Garuda Aero GCS Telemetry HUD Preview" width="100%" style="border-radius: 12px;"/>
+
+<br>
+
 *An enterprise-grade Ground Control Station (GCS) and real-time Digital Twin flight simulator featuring dynamic waypoint path generation, dual-layer active airspace geofencing (DGCA compliance), physics telemetry simulation, and an interactive 3D web dashboard.*
 
 </div>
